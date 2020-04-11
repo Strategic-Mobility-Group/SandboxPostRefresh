@@ -1,0 +1,101 @@
+/**
+* Chicago Cloud Group (c) - 2020
+*
+* SandboxPostRefresh
+*
+* Class which sets up the sandbox to 
+* appropriate settings as soon as the 
+* refresh is finished
+*
+* Manual Step(s)
+* 1. When using in Dev orgs, log into the Chicago Cloud Group Custom Settings and delete the 
+*    Setup Owner child record below the org-wide settings. It will mess with 
+*    the setup unless its deleted
+*
+* Created By: Alexander Miller
+* Created Date: 04/11/2020
+* Tested By: SandboxPostRefreshTest
+* Project Item: "Sandbox Post-Refresh Script: disable reports"
+*
+* Modified By             Alias             Modified Date              Reason
+* ------------------------------------------------------------------------------
+*/
+global class SandboxPostRefresh implements SandboxPostCopy {
+
+    global void runApexClass(SandboxContext context) 
+    { 
+        System.debug(context.organizationId()); 
+        System.debug(context.sandboxId()); 
+        System.debug(context.sandboxName()); 
+
+        if(runningInASandbox || Test.isRunningTest()) 
+        {
+            clearScheduledReportsAndDashboards();
+
+            if(context.sandboxName().containsIgnoreCase('Dev') || Test.isRunningTest())
+            {
+                baseDataSetup();
+            }
+
+            // ACCOUNTS -> CONTACTS -> LEADS
+            if(!Test.isRunningTest())
+            {
+                BatchCorrectAccountEmails b = new BatchCorrectAccountEmails(); 
+                database.executebatch(b, 1);
+            }
+        }
+    } 
+
+    /**
+    * clearScheduledReportsAndDashboards
+    *
+    * Function which gets all reports (8),
+    * Analytics snapshot (4), or Dashboard 
+    * Refresh (3), Analytics Notification (A), and cancels them.
+    *
+    * Inspiration: https://developer.salesforce.com/docs/atlas.en-us.object_reference.meta/object_reference/sforce_api_objects_cronjobdetail.htm
+    */
+    public static void clearScheduledReportsAndDashboards()
+    {
+        List<CronTrigger> cronJobList = ([SELECT Id FROM CronTrigger WHERE CronJobDetail.JobType IN ('3', '8', '4', 'A')]);
+
+        for(CronTrigger tempCron : cronJobList)
+        {
+            System.abortJob(tempCron.Id);
+        }
+    }
+    
+    /**
+     * baseDataSetup
+     * 
+     * If the org is a Dev sandbox (determined if name contains "Dev")
+     * then base data for processes is created
+     *
+     * @param context - the Sandbox Context to pull name and other info
+     */
+    public static void baseDataSetup()
+    {
+        Account ccg = new Account();
+        ccg.Name = 'Chicago Cloud Group';
+        ccg.SCMC__Preferred_Communication__c = 'Phone';
+        ccg.Lead_Source__c = 'Web';
+        ccg.Phone = '8479951010';
+        insert ccg;
+    }
+
+    /**
+    * runningInASandbox
+    *
+    * Function which figures out if the current org is a sandbox or
+    * not
+    */
+    public Boolean runningInASandbox {
+        get {
+            if (runningInASandbox == null) {
+                runningInASandbox = [SELECT IsSandbox FROM Organization LIMIT 1].IsSandbox;
+            }
+            return runningInASandbox;
+        }
+        set;
+    }
+}

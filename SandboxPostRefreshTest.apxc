@@ -1,0 +1,35 @@
+/**
+* Chicago Cloud Group (c) - 2020
+*
+* SandboxPostRefresh
+*
+* Class which sets up the sandbox to 
+* appropriate settings as soon as the 
+* refresh is finished
+*
+* Created By: Alexander Miller
+* Created Date: 04/11/2020
+* Tested By: SandboxPostRefreshTest
+* Project Item: "Sandbox Post-Refresh Script: disable reports"
+*
+* Modified By             Alias             Modified Date              Reason
+* ------------------------------------------------------------------------------ 
+*/ 
+@isTest(SeeAllData = true)
+public class SandboxPostRefreshTest {
+
+    static TestMethod void testReportClearing(){
+        
+        Test.startTest();
+
+        Test.testSandboxPostCopyScript(
+				new SandboxPostRefresh(), 
+				UserInfo.getOrganizationId(),
+                UserInfo.getOrganizationId(), 
+                UserInfo.getOrganizationName()
+			); 
+
+        Test.stopTest();
+        
+    }
+}

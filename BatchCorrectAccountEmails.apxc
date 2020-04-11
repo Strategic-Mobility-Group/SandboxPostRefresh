@@ -1,0 +1,79 @@
+/*
+* Chicago Cloud Group (c) - 2020
+*
+* BatchCorrectAccountEmails
+*
+* Created By: Alexander Miller 
+* Created Date: 04/11/2020
+* Tested By: BatchCorrectAccountEmailsTest
+* Modified By                  Alias          Modified Date           Reason
+* ---------------------------------------------------------------------------
+*  
+*/
+global class BatchCorrectAccountEmails implements Database.Stateful, Schedulable, Database.Batchable<sObject>{
+
+    private List<String> emailFields;
+
+    global void execute(SchedulableContext sc) 
+    {
+        BatchCorrectAccountEmails b = new BatchCorrectAccountEmails(); 
+        database.executebatch(b, 1);
+    }
+
+    global Database.QueryLocator start(Database.BatchableContext BC)
+    {
+        if(emailFields == null)
+        {
+            emailFields = new List<String>();
+        }
+
+        String strEmailFiels = '';
+
+        for(Schema.SObjectField field : Account.getSobjectType().getDescribe().fields.getMap().values())
+        {
+            if(Schema.DisplayType.EMAIL == field.getDescribe().getType())
+            {
+                strEmailFiels += ', ' + field.getDescribe().getName();
+                
+                emailFields.add(field.getDescribe().getName());
+            }  
+        }
+
+        strEmailFiels = strEmailFiels.removeStart(',');
+
+        System.debug(strEmailFiels);
+
+        return Database.getQueryLocator('SELECT Id, ' + strEmailFiels + ' FROM Account');
+    }
+
+    global void execute(Database.BatchableContext BC, List<Account> scope)
+    {
+        for(Account tempAccount : scope)
+        {
+            for(String tempField : emailFields)
+            {
+                String fieldValue = (String) tempAccount.get(tempField);
+
+                if(fieldValue != null && !String.isEmpty(fieldValue))
+                {
+                    fieldValue = fieldValue + '.invalid';
+
+                    tempAccount.put(tempField, fieldValue);
+                }
+            }
+        }
+
+        update scope;
+    }
+
+    global void finish(Database.BatchableContext BC)
+    {
+        if(!Test.isRunningTest())
+        {
+            // CONTACTS
+            BatchCorrectContactEmails b = new BatchCorrectContactEmails(); 
+            database.executebatch(b, 1);
+        } 
+    }
+
+}
